@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BotService extends TelegramLongPollingBot {
 
 
-    private final CentralRussianBankService centralBankRussianService;
+    private final CentralRussianBankService centralRussianBankService;
     @Autowired
     private final ActiveChatRepository activeChatRepository;
 
@@ -51,20 +51,14 @@ public class BotService extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        Message message = update.getMessage(); //Этой строчкой мы получаем сообщение от пользователя
+        Message message = update.getMessage();
         try {
-            SendMessage response = new SendMessage(); //Данный класс представляет собой реализацию команды отправки сообщения, которую за нас выполнит ранее подключенная библиотека
-            Long chatId = message.getChatId(); //ID чата, в который необходимо отправить ответ
-            response.setChatId(String.valueOf(chatId)); //Устанавливаем ID, полученный из предыдущего этап сюда, чтобы сообщить, в какой чат необходимо отправить сообщение
-            response.setText("DEFAULT");
-            //Тут начинается самое интересное - мы сравниваем, что прислал пользователь, и какие команды мы можем обработать. Пока что у нас только одна команда
+            SendMessage response = new SendMessage();
+            Long chatId = message.getChatId();
+            response.setChatId(String.valueOf(chatId));
             if (CURRENT_RATES.equalsIgnoreCase(message.getText())) {
-//Получаем все курсы валют на текущий момент и проходимся по ним в цикле
-                for (ValuteCursOnDate valuteCursOnDate : centralBankRussianService.getCurrenciesFromCbr()) {
-//В данной строчке мы собираем наше текстовое сообщение
-//StringUtils.defaultBlank – это метод из библиотеки Apache Commons, который нам нужен для того, чтобы на первой итерации нашего цикла была вставлена пустая строка вместо null, а на следующих итерациях не перетерся текст, полученный из предыдущих итерации. Подключение библиотеки см. ниже
-
-                    response.setText((response.getText().equals("") ? response.getText() : "") + valuteCursOnDate.getName() + " - " + valuteCursOnDate.getCourse() + "\n");
+                for (ValuteCursOnDate valuteCursOnDate : centralRussianBankService.getCurrenciesFromCbr()) {
+                    response.setText(StringUtils.defaultIfBlank(response.getText(), "") + valuteCursOnDate.getName() + " - " + valuteCursOnDate.getCourse() + "\n");
                 }
             } else if (ADD_INCOME.equalsIgnoreCase(message.getText())) {
                 response.setText("Отправьте мне сумму полученного дохода");
@@ -75,20 +69,16 @@ public class BotService extends TelegramLongPollingBot {
             }
 
             putPreviousCommand(message.getChatId(), message.getText());
-
-            //Теперь мы сообщаем, что пора бы и ответ отправлять
             execute(response);
-
             if (activeChatRepository.findActiveChatByChatId(chatId).isEmpty()) {
-                ActiveChat activeChat  = new ActiveChat();
+                ActiveChat activeChat = new ActiveChat();
                 activeChat.setChatId(chatId);
                 activeChatRepository.save(activeChat);
             }
-
-            //Ниже очень примитивная обработка исключений, чуть позже мы это поправим
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         } catch (Exception e) {
             e.printStackTrace();
-            log.error("Возникла проблема при получении данных от сервисов ЦБ РФ", e);
         }
     }
 
