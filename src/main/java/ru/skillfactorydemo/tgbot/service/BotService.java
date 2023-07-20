@@ -46,7 +46,7 @@ public class BotService extends TelegramLongPollingBot {
     private Map<Long, List<String>> previousCommands = new ConcurrentHashMap<>();
 
     private final static String ADD_INCOME = "/addincome";
-    private final static String ADD_SPEND = "/adspend";
+    private final static String ADD_SPEND = "/addspend";
     private final static String CURRENT_RATES = "/currentrates";
 
     @Override
